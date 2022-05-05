@@ -89,6 +89,55 @@ sub all_zones{ #ok
     return @zones;
 }
 
+sub dump_zone{
+    my $self = shift;
+    my $zone = shift;
+    $zone = $self->zone unless $zone;
+    my @records;
+    my $page = Net::LDAP::Control::Paged->new(size => 100) or die $!;
+    my $cookie;
+
+    while(1){
+        my $mesg = $self->{'ldap'}->search(
+                                        'base'   => "DC=".$zone.",".$self->dns_base,
+                                        'filter' => "(objectClass=dnsNode)",
+                                        'scope'  => 'sub',
+                                        'pagesize' => 100,
+                                        'control' => [$page],
+                                       );
+
+        my $resp = $mesg->control( LDAP_CONTROL_PAGED ) or last;
+        $cookie = $resp->cookie or last;
+
+        $page->cookie($cookie);
+
+        print STDERR $mesg->error if $mesg->code;
+
+        foreach my $record ($mesg->entries){
+            #print Dumper $record;
+            my $name = $record->get_value('name');
+            next if $name eq "server.kosiceme";
+            my @dnsr = $self->nslookup("$name",'A');
+            my $ptr;
+            my $ip;
+            #print Dumper @dnsr;
+            foreach my $dnsrr (@dnsr){
+              if($dnsrr->{'rdata'}->ipaddress){
+                $ip = $dnsrr->{'rdata'}->ipaddress;
+                my @dnsri = $self->nslookupptr("$ip",'PTR');
+                foreach my $dnsir (@dnsri){
+                  if($dnsir->{'rdata'}->ptr){
+                    $ptr = $dnsir->{'rdata'}->ptr;
+                  }
+                }
+              }
+            }
+            push(@records, {name => $name, dch => $record->get_value('whenChanged'), dcr => $record->get_value('whenCreated'), ip => $ip, ptr => $ptr });
+        }
+    }
+    return @records;
+}
+
 sub add_propagated{
     my $self = shift;
     my $hashform = $self->hashify(@_);
