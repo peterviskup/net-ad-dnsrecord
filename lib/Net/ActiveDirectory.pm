@@ -27,6 +27,7 @@ sub new{ #ok
     }else{
         $self->zone($self->domain);
     };
+    if($cnstr->{'ldap_hosts'}){ $self->ldap($cnstr->{'ldap_hosts'}) };
 
     if($cnstr->{'dns_base'}){ 
         $self->dns_base($cnstr->{'dns_base'});
@@ -34,7 +35,7 @@ sub new{ #ok
         $self->dns_base("cn=MicrosoftDNS,cn=System,".$self->basedn);
     }
     
-    $self->{'ldap'} = Net::LDAP->new( $self->domain ) or return undef;
+    $self->{'ldap'} = Net::LDAP->new( $self->ldap ) or die "$@";
     $self->{'mesg'} = $self->{'ldap'}->bind( 
                                              $self->username.'@'.$self->domain, 
                                              password => $self->password
@@ -610,6 +611,12 @@ sub zone{
     my $self = shift;
     $self->{'zone'} = shift if @_;
     return $self->{'zone'};
+}
+
+sub ldap{
+    my $self = shift;
+    $self->{'ldap_hosts'} = shift if @_;
+    return $self->{'ldap_hosts'};
 }
 
 sub domain{
