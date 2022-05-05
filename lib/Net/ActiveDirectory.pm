@@ -117,7 +117,6 @@ sub dump_zone{
         foreach my $record ($mesg->entries){
             #print Dumper $record;
             my $name = $record->get_value('name');
-            next if $name eq "server.kosiceme";
             my @dnsr = $self->nslookup("$name",'A');
             my $ptr;
             my $ip;
