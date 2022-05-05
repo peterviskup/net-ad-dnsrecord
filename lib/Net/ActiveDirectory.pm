@@ -244,6 +244,47 @@ sub nslookup{ #ok
     return @records;
 }
 
+sub nslookupptr{ #ok
+    my $self=shift;
+    my $query=shift if @_;
+    my $type=shift if @_;
+    return undef unless $query;
+    my @records;
+    my $arpa = $self->closest_arpa($query);
+    my @subnet = split(/\./,$arpa);
+    pop(@subnet); pop(@subnet);
+    my $host_oct = $query;
+    my $subnet = join('.',reverse(@subnet));
+    $host_oct=~s/^$subnet.//;
+
+    #print STDERR "&(objectClass=dnsNode)(DC=$query) dc=".$arpa.",".$self->dns_base."\n";
+    my $mesg = $self->{'ldap'}->search(
+        'base'   => "dc=".$arpa.",".$self->dns_base,
+        'filter' => "(&(objectClass=dnsNode)(DC=$host_oct))",
+    );
+    print STDERR $mesg->error if $mesg->code;
+    foreach my $entry ($mesg->entries){
+        my @dcs = $entry->get_value('dc');
+        if($#dcs > 0){
+            print STDERR "multiple ldap entries found for $query\n";
+            #print Data::Dumper->Dump([@dcs]);
+        }else{
+            my @dnsrecords=$entry->get_value('dnsRecord');
+            foreach my $dnsrecord (@dnsrecords){
+                 my $recobj = Net::ActiveDirectory::DNSRecord->new($dnsrecord);
+                 if($type){
+                     if(lc($recobj->type) eq lc($type)){
+                         push(@records,$recobj);
+                     }
+                 }else{
+                     push(@records,$recobj);
+                }
+            }
+        }
+    }
+    return @records;
+}
+
 ################################################################################
 # Methods to parse the zone-style methods and hand them to add/delete
 #
