@@ -6,8 +6,9 @@ use Data::Dumper;
 use MIME::Base64;
 use Net::LDAP;
 use Net::LDAP::Entry;
-use YAML;
+#use YAML;
 use strict;
+use warnings;
 
 sub new{ #ok
     my $class = shift;
